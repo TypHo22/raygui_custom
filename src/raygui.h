@@ -714,7 +714,8 @@ RAYGUIAPI int GuiScrollPanel(Rectangle bounds, const char *text, Rectangle conte
 // Basic controls set
 RAYGUIAPI int GuiLabel(Rectangle bounds, const char *text);                                            // Label control, shows text
 RAYGUIAPI int GuiButton(Rectangle bounds, const char *text);                                           // Button control, returns true when clicked
-RAYGUIAPI int GuiButtonMaskable(Rectangle bounds, const char *text, Texture* texture, Vector2 pos);
+RAYGUIAPI int GuiButtonMaskable(Rectangle bounds, const char *text, Color textColor, Texture* texture, Vector2 pos);
+RAYGUIAPI int GuiButtonMaskableFx(Rectangle bounds, const char *text, Color textColor, Texture* texture, Vector2 pos, Sound* fxButton);
 RAYGUIAPI int GuiLabelButton(Rectangle bounds, const char *text);                                      // Label button control, show true when clicked
 RAYGUIAPI int GuiToggle(Rectangle bounds, const char *text, bool *active);                             // Toggle Button control, returns true when active
 RAYGUIAPI int GuiToggleGroup(Rectangle bounds, const char *text, int *active);                         // Toggle Group control, returns active toggle index
@@ -1988,7 +1989,7 @@ int GuiButton(Rectangle bounds, const char *text)
     return result;      // Button pressed: result = 1
 }
 
-int GuiButtonMaskable(Rectangle bounds, const char *text, Texture* texture, Vector2 pos)
+int GuiButtonMaskable(Rectangle bounds, const char *text, Color textColor, Texture* texture, Vector2 pos)
 {
     int result = 0;
     GuiState state = guiState;
@@ -2013,8 +2014,60 @@ int GuiButtonMaskable(Rectangle bounds, const char *text, Texture* texture, Vect
     // Draw control
     //--------------------------------------------------------------------
     GuiDrawRectangle(bounds, GuiGetStyle(BUTTON, BORDER_WIDTH), GetColor(GuiGetStyle(BUTTON, BORDER + (state*3))), GetColor(GuiGetStyle(BUTTON, BASE + (state*3))));
-    DrawTextureRec(*texture,bounds,Vector2{bounds.x,bounds.y},WHITE);
-    GuiDrawText(text, GetTextBounds(BUTTON, bounds), GuiGetStyle(BUTTON, TEXT_ALIGNMENT), GetColor(GuiGetStyle(BUTTON, TEXT + (state*3))));
+    if(texture)
+        DrawTexturePro(*texture,
+                       Rectangle{0.0,0.0,static_cast<float>(texture->width),
+                                 static_cast<float>(texture->height)},
+                       bounds,Vector2{0,0},0.0,WHITE);
+
+    GuiDrawText(text, GetTextBounds(BUTTON, bounds), GuiGetStyle(BUTTON, TEXT_ALIGNMENT), textColor);
+
+
+    if (state == STATE_FOCUSED) GuiTooltip(bounds);
+    //------------------------------------------------------------------
+
+    return result;      // Button pressed: result = 1
+}
+
+GuiButtonMaskableFx(Rectangle bounds, const char *text, Color textColor, Texture* texture, Vector2 pos, Sound* fxButton)
+{
+    int result = 0;
+    GuiState state = guiState;
+
+    // Update control
+    //--------------------------------------------------------------------
+    if ((state != STATE_DISABLED) && !guiLocked && !guiSliderDragging)
+    {
+        Vector2 mousePoint = GetMousePosition();
+
+        // Check button state
+        if (CheckCollisionPointRec(mousePoint, bounds))
+        {
+            if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) state = STATE_PRESSED;
+            else state = STATE_FOCUSED;
+
+            if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON))
+            {
+                if(fxButton)
+                    PlaySound(*fxButton);
+
+                result = 1;
+            }
+        }
+    }
+    //--------------------------------------------------------------------
+
+    // Draw control
+    //--------------------------------------------------------------------
+    GuiDrawRectangle(bounds, GuiGetStyle(BUTTON, BORDER_WIDTH), GetColor(GuiGetStyle(BUTTON, BORDER + (state*3))), GetColor(GuiGetStyle(BUTTON, BASE + (state*3))));
+    if(texture)
+        DrawTexturePro(*texture,
+                       Rectangle{0.0,0.0,static_cast<float>(texture->width),
+                                 static_cast<float>(texture->height)},
+                       bounds,Vector2{0,0},0.0,WHITE);
+
+
+    GuiDrawText(text, GetTextBounds(BUTTON, bounds), GuiGetStyle(BUTTON, TEXT_ALIGNMENT), textColor);
 
 
     if (state == STATE_FOCUSED) GuiTooltip(bounds);
